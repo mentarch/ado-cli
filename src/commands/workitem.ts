@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
+import Table from 'cli-table3';
 import { ConfigManager } from '../config';
 import { AdoApiClient } from '../api/client';
 import { AuthManager } from '../auth';
@@ -29,7 +30,6 @@ export function createWorkItemCommand(configManager: ConfigManager): Command {
     .option('-S, --search <query>', 'Search work item titles and descriptions')
     .option('--sort <field>', 'Sort by field (created, updated, priority, title)', 'created')
     .option('--order <asc|desc>', 'Sort order', 'desc')
-    .option('--compact', 'Show compact output (less detail)')
     .option('--full', 'Show full titles (no truncation)')
     .option('-R, --repo <org/project>', 'Target organization/project')
     .action(async (options) => {
@@ -201,45 +201,55 @@ function displayWorkItems(workItems: WorkItem[], options: any = {}): void {
     return;
   }
 
-  // Handle different output formats
-  if (options.compact) {
-    displayCompactWorkItems(workItems);
-    return;
-  }
-
-  // Calculate column widths
-  const maxTitleLength = options.full ? 100 : 60;
-  const maxAssigneeLength = 20;
-  
-  // Print header
-  console.log('');
-  console.log(chalk.bold.underline('ID      Status          Type        Assignee            Title'));
-  console.log(chalk.gray('─'.repeat(120)));
-  
-  workItems.forEach(wi => {
-    const id = wi.fields['System.Id'].toString().padStart(6);
-    const state = getStateWithColor(wi.fields['System.State'].toUpperCase().padEnd(14));
-    const type = wi.fields['System.WorkItemType'].padEnd(10);
-    const assignee = truncateText(wi.fields['System.AssignedTo']?.displayName || 'Unassigned', maxAssigneeLength).padEnd(20);
-    const title = truncateText(wi.fields['System.Title'], maxTitleLength);
-    
-    console.log(`${id}  ${state}  ${type}  ${assignee}  ${title}`);
+  // Create table
+  const table = new Table({
+    head: [
+      chalk.bold('ID'),
+      chalk.bold('Status'),
+      chalk.bold('Type'),
+      chalk.bold('Assignee'),
+      chalk.bold('Title')
+    ],
+    colWidths: [8, 18, 12, 20, options.full ? 80 : 50],
+    style: {
+      head: ['cyan']
+    },
+    chars: {
+      'top': '',
+      'top-mid': '',
+      'top-left': '',
+      'top-right': '',
+      'bottom': '',
+      'bottom-mid': '',
+      'bottom-left': '',
+      'bottom-right': '',
+      'left': '',
+      'left-mid': '',
+      'mid': '',
+      'mid-mid': '',
+      'right': '',
+      'right-mid': '',
+      'middle': '  '
+    }
   });
-  
-  console.log(chalk.gray('─'.repeat(120)));
+
+  // Add rows
+  workItems.forEach(wi => {
+    const id = wi.fields['System.Id'].toString();
+    const state = getStateWithColor(wi.fields['System.State'].toUpperCase());
+    const type = wi.fields['System.WorkItemType'];
+    const assignee = wi.fields['System.AssignedTo']?.displayName || 'Unassigned';
+    const title = truncateText(wi.fields['System.Title'], options.full ? 78 : 48);
+    
+    table.push([id, state, type, assignee, title]);
+  });
+
+  console.log('');
+  console.log(table.toString());
   console.log(chalk.dim(`Showing ${workItems.length} work items`));
 }
 
-function displayCompactWorkItems(workItems: WorkItem[]): void {
-  console.log('');
-  workItems.forEach(wi => {
-    const id = wi.fields['System.Id'];
-    const state = getStateWithColor(wi.fields['System.State'].toUpperCase());
-    const title = truncateText(wi.fields['System.Title'], 80);
-    
-    console.log(`${id}  ${state}  ${title}`);
-  });
-}
+
 
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) {
