@@ -2,7 +2,6 @@ import { Command } from 'commander';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
-import { table } from 'table';
 import { ConfigManager } from '../config';
 import { AdoApiClient } from '../api/client';
 import { AuthManager } from '../auth';
@@ -137,7 +136,7 @@ async function listWorkItems(configManager: ConfigManager, options: ListWorkItem
       return;
     }
 
-    displayWorkItemsTable(workItems);
+    displayWorkItems(workItems);
   } catch (error) {
     spinner.fail('Failed to fetch work items');
     throw error;
@@ -194,54 +193,32 @@ function getOrderByClause(sort: string, order: string): string {
   return `${field} ${order.toUpperCase()}`;
 }
 
-function displayWorkItemsTable(workItems: WorkItem[]): void {
-  const data = [
-    [chalk.bold('ID'), chalk.bold('Title'), chalk.bold('Type'), chalk.bold('State'), chalk.bold('Assignee')]
-  ];
-  
+function displayWorkItems(workItems: WorkItem[]): void {
   workItems.forEach(wi => {
-    const assignee = wi.fields['System.AssignedTo']?.displayName || 'Unassigned';
-    data.push([
-      chalk.cyan(wi.fields['System.Id'].toString()),
-      wi.fields['System.Title'],
-      wi.fields['System.WorkItemType'],
-      getStateWithColor(wi.fields['System.State']),
-      assignee
-    ]);
+    const id = wi.fields['System.Id'].toString();
+    const state = wi.fields['System.State'].toUpperCase();
+    const title = wi.fields['System.Title'];
+    const type = wi.fields['System.WorkItemType'];
+    const assignee = wi.fields['System.AssignedTo']?.displayName || '';
+    const createdDate = wi.fields['System.CreatedDate'] || '';
+    
+    // Format: ID \t STATE \t TITLE \t TYPE \t ASSIGNEE \t CREATED_DATE
+    console.log(`${id}\t${getStateWithColor(state)}\t${title}\t${type}\t${assignee}\t${createdDate}`);
   });
-  
-  console.log(table(data, {
-    border: {
-      topBody: `─`,
-      topJoin: `┬`,
-      topLeft: `┌`,
-      topRight: `┐`,
-      bottomBody: `─`,
-      bottomJoin: `┴`,
-      bottomLeft: `└`,
-      bottomRight: `┘`,
-      bodyLeft: `│`,
-      bodyRight: `│`,
-      bodyJoin: `│`,
-      joinBody: `─`,
-      joinLeft: `├`,
-      joinRight: `┤`,
-      joinJoin: `┼`
-    }
-  }));
 }
 
 function getStateWithColor(state: string): string {
+  const upperState = state.toUpperCase();
   const stateColors: Record<string, (text: string) => string> = {
-    'New': chalk.blue,
-    'Active': chalk.yellow,
-    'Resolved': chalk.green,
-    'Closed': chalk.gray,
-    'Removed': chalk.red
+    'NEW': chalk.blue,
+    'ACTIVE': chalk.yellow,
+    'RESOLVED': chalk.green,
+    'CLOSED': chalk.gray,
+    'REMOVED': chalk.red
   };
   
-  const colorFn = stateColors[state] || chalk.white;
-  return colorFn(state);
+  const colorFn = stateColors[upperState] || chalk.white;
+  return colorFn(upperState);
 }
 
 async function createWorkItem(configManager: ConfigManager, options: any): Promise<void> {
