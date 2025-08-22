@@ -113,7 +113,7 @@ export class AdoApiClient {
       {
         params: {
           ids: workItemIds.join(','),
-          '$expand': 'fields',
+          '$expand': 'all',
           'api-version': '7.1'
         }
       }

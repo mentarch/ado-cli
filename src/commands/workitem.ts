@@ -31,6 +31,7 @@ export function createWorkItemCommand(configManager: ConfigManager): Command {
     .option('--sort <field>', 'Sort by field (created, updated, priority, title)', 'created')
     .option('--order <asc|desc>', 'Sort order', 'desc')
     .option('--full', 'Show full titles (no truncation)')
+    .option('--web', 'Open work items in browser when clicked')
     .option('-R, --repo <org/project>', 'Target organization/project')
     .action(async (options) => {
       try {
@@ -107,6 +108,24 @@ export function createWorkItemCommand(configManager: ConfigManager): Command {
 
         await authManager.ensureAuthenticated();
         await reopenWorkItem(configManager, parseInt(id), options);
+      } catch (error) {
+        console.error(chalk.red(`Error: ${error}`));
+        process.exit(1);
+      }
+    });
+
+  command
+    .command('view <id>')
+    .description('View a work item in the browser')
+    .option('-R, --repo <org/project>', 'Target organization/project')
+    .action(async (id, options) => {
+      try {
+        if (options.repo) {
+          configManager.setRepository(options.repo);
+        }
+
+        await authManager.ensureAuthenticated();
+        await viewWorkItem(configManager, parseInt(id));
       } catch (error) {
         console.error(chalk.red(`Error: ${error}`));
         process.exit(1);
@@ -236,17 +255,32 @@ function displayWorkItems(workItems: WorkItem[], options: any = {}): void {
   // Add rows
   workItems.forEach(wi => {
     const id = wi.fields['System.Id'].toString();
+    const webUrl = wi._links?.html?.href || '';
+    const clickableId = webUrl ? chalk.blue.underline(id) : id;
     const state = getStateWithColor(wi.fields['System.State'].toUpperCase());
     const type = wi.fields['System.WorkItemType'];
     const assignee = wi.fields['System.AssignedTo']?.displayName || 'Unassigned';
     const title = truncateText(wi.fields['System.Title'], options.full ? 78 : 48);
     
-    table.push([id, state, type, assignee, title]);
+    table.push([clickableId, state, type, assignee, title]);
   });
 
   console.log('');
   console.log(table.toString());
   console.log(chalk.dim(`Showing ${workItems.length} work items`));
+  
+  // Show URLs if --web option is used
+  if (options.web && workItems.length > 0) {
+    console.log('');
+    console.log(chalk.cyan('🔗 Work Item URLs:'));
+    workItems.forEach(wi => {
+      const id = wi.fields['System.Id'];
+      const webUrl = wi._links?.html?.href;
+      if (webUrl) {
+        console.log(chalk.blue(`#${id}: ${webUrl}`));
+      }
+    });
+  }
 }
 
 
@@ -423,6 +457,33 @@ async function reopenWorkItem(configManager: ConfigManager, id: number, options:
     console.log(`📊 State: ${getStateWithColor(workItem.fields['System.State'])}`);
   } catch (error) {
     spinner.fail(`Failed to reopen work item #${id}`);
+    throw error;
+  }
+}
+
+async function viewWorkItem(configManager: ConfigManager, id: number): Promise<void> {
+  const client = new AdoApiClient(configManager);
+  
+  const spinner = ora(`Fetching work item #${id}...`).start();
+  
+  try {
+    const workItem = await client.getWorkItem(id);
+    spinner.succeed(`Work item #${id} found`);
+    
+    const webUrl = workItem._links?.html?.href;
+    if (webUrl) {
+      console.log('');
+      console.log(chalk.green(`✅ Opening work item #${id} in browser`));
+      console.log(`📝 Title: ${workItem.fields['System.Title']}`);
+      console.log(`🔗 URL: ${chalk.blue(webUrl)}`);
+      
+      const open = require('open');
+      await open(webUrl);
+    } else {
+      throw new Error('Work item URL not available');
+    }
+  } catch (error) {
+    spinner.fail(`Failed to open work item #${id}`);
     throw error;
   }
 }

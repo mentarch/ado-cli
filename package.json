@@ -30,7 +30,7 @@
     "commander": "^11.1.0",
     "inquirer": "^8.2.7",
     "keytar": "^7.9.0",
-    "open": "^10.0.0",
+    "open": "^8.4.2",
     "ora": "^5.4.1"
   },
   "devDependencies": {
