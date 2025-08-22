@@ -40,13 +40,32 @@ export class AdoApiClient {
 
   async testConnection(): Promise<boolean> {
     try {
-      const baseUrl = this.getBaseUrl();
-      const project = this.getProject();
-      await this.client.get(`${baseUrl}/${project}/_apis/wit/workitemtypes`, {
+      // Test token by calling the Azure DevOps REST API with organization
+      // This endpoint validates the token and returns organization information
+      const organization = this.configManager.getOrganization();
+      if (!organization) {
+        console.log('❌ No organization configured for token validation');
+        return false;
+      }
+      
+      const response = await this.client.get(`https://dev.azure.com/${encodeURIComponent(organization)}/_apis/projects`, {
         params: { 'api-version': '7.1' }
       });
+      console.log('✅ Token validation successful');
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      console.log('❌ Token validation failed:');
+      if (error.response) {
+        console.log(`   Status: ${error.response.status}`);
+        console.log(`   Status Text: ${error.response.statusText}`);
+        if (error.response.data) {
+          console.log(`   Error: ${JSON.stringify(error.response.data, null, 2)}`);
+        }
+      } else if (error.request) {
+        console.log(`   Network Error: ${error.message}`);
+      } else {
+        console.log(`   Error: ${error.message}`);
+      }
       return false;
     }
   }

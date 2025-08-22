@@ -31,6 +31,50 @@ export class AuthManager {
   async login(): Promise<void> {
     console.log(chalk.blue('🔐 Azure DevOps Authentication'));
     console.log('');
+    
+    // Check if organization and project are set first
+    const currentOrg = this.configManager.getOrganization();
+    const currentProject = this.configManager.getProject();
+    
+    if (!currentOrg || !currentProject) {
+      console.log(chalk.yellow('⚠️  No default organization/project configured'));
+      console.log(chalk.dim('Let\'s set up your default organization and project first:'));
+      console.log('');
+      
+      const orgProjectAnswers = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'organization',
+          message: 'Enter your Azure DevOps organization name:',
+          default: currentOrg || '',
+          validate: (input: string) => {
+            if (!input.trim()) {
+              return 'Organization name is required';
+            }
+            return true;
+          }
+        },
+        {
+          type: 'input',
+          name: 'project',
+          message: 'Enter your Azure DevOps project name:',
+          default: currentProject || '',
+          validate: (input: string) => {
+            if (!input.trim()) {
+              return 'Project name is required';
+            }
+            return true;
+          }
+        }
+      ]);
+      
+      this.configManager.setOrganization(orgProjectAnswers.organization.trim());
+      this.configManager.setProject(orgProjectAnswers.project.trim());
+      
+      console.log(chalk.green(`✅ Default repository set to: ${chalk.cyan(orgProjectAnswers.organization.trim() + '/' + orgProjectAnswers.project.trim())}`));
+      console.log('');
+    }
+    
     console.log('To authenticate, you need a Personal Access Token (PAT) from Azure DevOps.');
     console.log('');
     console.log(chalk.dim('Steps to get a PAT:'));
@@ -68,6 +112,7 @@ export class AuthManager {
       }
       
       console.log(chalk.green('✅ Authentication successful!'));
+      
     } catch (error) {
       console.log(chalk.red(`❌ Authentication failed: ${error}`));
       throw error;

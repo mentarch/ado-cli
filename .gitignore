@@ -50,3 +50,7 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+
+# Personal/private files
+Personal/
+Personal
