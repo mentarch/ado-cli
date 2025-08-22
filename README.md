@@ -2,13 +2,40 @@
 
 A command-line interface for Azure DevOps that mirrors the GitHub CLI (`gh`) experience.
 
+[![npm version](https://badge.fury.io/js/ado-cli.svg)](https://badge.fury.io/js/ado-cli)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ## Installation
 
+### Install from npm (Recommended)
+
 ```bash
+# Install globally
+npm install -g ado-cli
+
+# Or use with npx (no installation required)
+npx ado-cli --help
+```
+
+### Install from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/sivori/ado-cli.git
+cd ado-cli
+
+# Install dependencies and build
 npm install
 npm run build
-npm link  # Make 'ado' command available globally
+
+# Link for global use
+npm link
 ```
+
+### System Requirements
+
+- Node.js 16 or higher
+- npm 7 or higher
 
 ## Quick Start
 
@@ -16,20 +43,21 @@ npm link  # Make 'ado' command available globally
    ```bash
    ado auth login
    ```
+   *The CLI will guide you through setting up your organization, project, and Personal Access Token.*
 
-2. **Set your default organization/project**
-   ```bash
-   ado repo set-default myorg/myproject
-   ```
-
-3. **List work items**
+2. **List work items**
    ```bash
    ado workitem list
    ```
 
-4. **Create a work item**
+3. **Create a work item**
    ```bash
    ado workitem create
+   ```
+
+4. **Check your authentication status**
+   ```bash
+   ado auth status
    ```
 
 ## Authentication
@@ -127,6 +155,29 @@ src/
 └── index.ts      # Main CLI entry point
 ```
 
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on:
+
+- How to report issues
+- How to suggest features  
+- How to submit pull requests
+- Development setup and guidelines
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 ## Roadmap
 
 See [project-plan.md](./project-plan.md) for detailed feature tracking and implementation status.
+
+## Acknowledgments
+
+- Inspired by the GitHub CLI (`gh`) for its excellent user experience
+- Built with [Commander.js](https://github.com/tj/commander.js) for CLI framework
+- Uses [Keytar](https://github.com/atom/node-keytar) for secure credential storage
+
+---
+
+**Note**: This tool is not officially affiliated with Microsoft or Azure DevOps.
