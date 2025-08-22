@@ -29,6 +29,8 @@ export function createWorkItemCommand(configManager: ConfigManager): Command {
     .option('-S, --search <query>', 'Search work item titles and descriptions')
     .option('--sort <field>', 'Sort by field (created, updated, priority, title)', 'created')
     .option('--order <asc|desc>', 'Sort order', 'desc')
+    .option('--compact', 'Show compact output (less detail)')
+    .option('--full', 'Show full titles (no truncation)')
     .option('-R, --repo <org/project>', 'Target organization/project')
     .action(async (options) => {
       try {
@@ -136,7 +138,7 @@ async function listWorkItems(configManager: ConfigManager, options: ListWorkItem
       return;
     }
 
-    displayWorkItems(workItems);
+    displayWorkItems(workItems, options);
   } catch (error) {
     spinner.fail('Failed to fetch work items');
     throw error;
@@ -193,18 +195,57 @@ function getOrderByClause(sort: string, order: string): string {
   return `${field} ${order.toUpperCase()}`;
 }
 
-function displayWorkItems(workItems: WorkItem[]): void {
+function displayWorkItems(workItems: WorkItem[], options: any = {}): void {
+  if (workItems.length === 0) {
+    console.log(chalk.yellow('No work items found.'));
+    return;
+  }
+
+  // Handle different output formats
+  if (options.compact) {
+    displayCompactWorkItems(workItems);
+    return;
+  }
+
+  // Calculate column widths
+  const maxTitleLength = options.full ? 100 : 60;
+  const maxAssigneeLength = 20;
+  
+  // Print header
+  console.log('');
+  console.log(chalk.bold.underline('ID      Status          Type        Assignee            Title'));
+  console.log(chalk.gray('─'.repeat(120)));
+  
   workItems.forEach(wi => {
-    const id = wi.fields['System.Id'].toString();
-    const state = wi.fields['System.State'].toUpperCase();
-    const title = wi.fields['System.Title'];
-    const type = wi.fields['System.WorkItemType'];
-    const assignee = wi.fields['System.AssignedTo']?.displayName || '';
-    const createdDate = wi.fields['System.CreatedDate'] || '';
+    const id = wi.fields['System.Id'].toString().padStart(6);
+    const state = getStateWithColor(wi.fields['System.State'].toUpperCase().padEnd(14));
+    const type = wi.fields['System.WorkItemType'].padEnd(10);
+    const assignee = truncateText(wi.fields['System.AssignedTo']?.displayName || 'Unassigned', maxAssigneeLength).padEnd(20);
+    const title = truncateText(wi.fields['System.Title'], maxTitleLength);
     
-    // Format: ID \t STATE \t TITLE \t TYPE \t ASSIGNEE \t CREATED_DATE
-    console.log(`${id}\t${getStateWithColor(state)}\t${title}\t${type}\t${assignee}\t${createdDate}`);
+    console.log(`${id}  ${state}  ${type}  ${assignee}  ${title}`);
   });
+  
+  console.log(chalk.gray('─'.repeat(120)));
+  console.log(chalk.dim(`Showing ${workItems.length} work items`));
+}
+
+function displayCompactWorkItems(workItems: WorkItem[]): void {
+  console.log('');
+  workItems.forEach(wi => {
+    const id = wi.fields['System.Id'];
+    const state = getStateWithColor(wi.fields['System.State'].toUpperCase());
+    const title = truncateText(wi.fields['System.Title'], 80);
+    
+    console.log(`${id}  ${state}  ${title}`);
+  });
+}
+
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return text.substring(0, maxLength - 3) + '...';
 }
 
 function getStateWithColor(state: string): string {
@@ -212,9 +253,19 @@ function getStateWithColor(state: string): string {
   const stateColors: Record<string, (text: string) => string> = {
     'NEW': chalk.blue,
     'ACTIVE': chalk.yellow,
+    'IN DEVELOPMENT': chalk.cyan,
+    'READY TO DEVELOP': chalk.blue,
+    'GROOMING': chalk.magenta,
+    'ON HOLD': chalk.red,
     'RESOLVED': chalk.green,
     'CLOSED': chalk.gray,
-    'REMOVED': chalk.red
+    'REMOVED': chalk.red,
+    'DONE': chalk.green,
+    'TO DO': chalk.blue,
+    'IN PROGRESS': chalk.yellow,
+    'BLOCKED': chalk.red,
+    'TESTING': chalk.cyan,
+    'REVIEW': chalk.magenta
   };
   
   const colorFn = stateColors[upperState] || chalk.white;
