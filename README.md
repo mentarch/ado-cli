@@ -1,6 +1,6 @@
-# Azure DevOps CLI (ado)
+# Unofficial CLI for Azure DevOps CLI (ado)
 
-A command-line interface for Azure DevOps that mirrors the GitHub CLI (`gh`) experience.
+A command-line interface to use Azure DevOps that mirrors the GitHub CLI (`gh`) experience.
 
 [![npm version](https://badge.fury.io/js/ado-cli.svg)](https://badge.fury.io/js/ado-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
