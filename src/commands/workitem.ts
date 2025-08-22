@@ -3,6 +3,7 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
 import Table from 'cli-table3';
+import open from 'open';
 import { ConfigManager } from '../config';
 import { AdoApiClient } from '../api/client';
 import { AuthManager } from '../auth';
@@ -398,7 +399,6 @@ async function createWorkItem(configManager: ConfigManager, options: any): Promi
     console.log(`🔗 URL: ${workItem._links.html.href}`);
     
     if (options.web) {
-      const open = require('open');
       await open(workItem._links.html.href);
     }
   } catch (error) {
@@ -477,7 +477,6 @@ async function viewWorkItem(configManager: ConfigManager, id: number): Promise<v
       console.log(`📝 Title: ${workItem.fields['System.Title']}`);
       console.log(`🔗 URL: ${chalk.blue(webUrl)}`);
       
-      const open = require('open');
       await open(webUrl);
     } else {
       throw new Error('Work item URL not available');
