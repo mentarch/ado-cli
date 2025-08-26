@@ -116,7 +116,8 @@ export function createWorkItemCommand(configManager: ConfigManager): Command {
 
   command
     .command('view <id>')
-    .description('View a work item in the browser')
+    .description('View detailed information about a work item')
+    .option('--web', 'Open work item in browser after displaying details')
     .option('-R, --repo <org/project>', 'Target organization/project')
     .action(async (id, options) => {
       try {
@@ -125,7 +126,7 @@ export function createWorkItemCommand(configManager: ConfigManager): Command {
         }
 
         await authManager.ensureAuthenticated();
-        await viewWorkItem(configManager, parseInt(id));
+        await viewWorkItem(configManager, parseInt(id), options);
       } catch (error) {
         console.error(chalk.red(`Error: ${error}`));
         process.exit(1);
@@ -326,6 +327,142 @@ function getTypeWithColor(type: string): string {
   return colorFn(type);
 }
 
+function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) {
+    return chalk.green('today');
+  } else if (diffDays === 1) {
+    return chalk.yellow('yesterday');
+  } else if (diffDays < 7) {
+    return chalk.yellow(`${diffDays} days ago`);
+  } else if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return chalk.dim(`${weeks} week${weeks > 1 ? 's' : ''} ago`);
+  } else {
+    return chalk.dim(date.toLocaleDateString());
+  }
+}
+
+function formatDescription(description?: string): string {
+  if (!description) return chalk.dim('No description provided');
+  
+  // Remove HTML tags for terminal display
+  const cleanDescription = description
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
+    
+  if (cleanDescription.length === 0) {
+    return chalk.dim('No description provided');
+  }
+  
+  // Wrap long descriptions
+  const maxWidth = 80;
+  if (cleanDescription.length <= maxWidth) {
+    return cleanDescription;
+  }
+  
+  const words = cleanDescription.split(' ');
+  const lines = [];
+  let currentLine = '';
+  
+  for (const word of words) {
+    if ((currentLine + word).length > maxWidth && currentLine.length > 0) {
+      lines.push(currentLine.trim());
+      currentLine = word + ' ';
+    } else {
+      currentLine += word + ' ';
+    }
+  }
+  
+  if (currentLine.trim()) {
+    lines.push(currentLine.trim());
+  }
+  
+  return lines.join('\n       ');
+}
+
+function displayDetailedWorkItem(workItem: WorkItem): void {
+  const fields = workItem.fields;
+  const webUrl = workItem._links?.html?.href;
+  
+  console.log('');
+  
+  // Header
+  console.log(chalk.bold.cyan(`#${fields['System.Id']} ${fields['System.Title']}`));
+  console.log(chalk.dim('─'.repeat(Math.min(process.stdout.columns || 80, 80))));
+  
+  // Status line
+  const state = getStateWithColor(fields['System.State']);
+  const type = getTypeWithColor(fields['System.WorkItemType']);
+  console.log(`${chalk.bold('Status:')} ${state}  ${chalk.bold('Type:')} ${type}`);
+  
+  // Assignment
+  const assignee = fields['System.AssignedTo']?.displayName || chalk.dim('Unassigned');
+  const assigneeDisplay = fields['System.AssignedTo'] 
+    ? chalk.green(assignee)
+    : assignee;
+  console.log(`${chalk.bold('Assignee:')} ${assigneeDisplay}`);
+  
+  // Priority
+  if (fields['Microsoft.VSTS.Common.Priority']) {
+    const priority = fields['Microsoft.VSTS.Common.Priority'];
+    const priorityColors = [chalk.red, chalk.yellow, chalk.blue, chalk.gray];
+    const priorityColor = priorityColors[priority - 1] || chalk.white;
+    console.log(`${chalk.bold('Priority:')} ${priorityColor(priority.toString())}`);
+  }
+  
+  // Area and Iteration
+  if (fields['System.AreaPath']) {
+    console.log(`${chalk.bold('Area:')} ${fields['System.AreaPath']}`);
+  }
+  if (fields['System.IterationPath']) {
+    console.log(`${chalk.bold('Iteration:')} ${fields['System.IterationPath']}`);
+  }
+  
+  // Tags
+  if (fields['System.Tags']) {
+    const tags = fields['System.Tags'].split(';').map((tag: string) => 
+      chalk.cyan(`#${tag.trim()}`)
+    ).join(' ');
+    console.log(`${chalk.bold('Tags:')} ${tags}`);
+  }
+  
+  console.log('');
+  
+  // Dates
+  const created = formatDate(fields['System.CreatedDate']);
+  const updated = formatDate(fields['System.ChangedDate']);
+  const createdBy = fields['System.CreatedBy']?.displayName || 'Unknown';
+  
+  console.log(`${chalk.bold('Created:')} ${created} by ${chalk.blue(createdBy)}`);
+  if (fields['System.CreatedDate'] !== fields['System.ChangedDate']) {
+    console.log(`${chalk.bold('Updated:')} ${updated}`);
+  }
+  
+  // Description
+  if (fields['System.Description']) {
+    console.log('');
+    console.log(chalk.bold('Description:'));
+    console.log(`       ${formatDescription(fields['System.Description'])}`);
+  }
+  
+  // URL
+  if (webUrl) {
+    console.log('');
+    console.log(`${chalk.bold('URL:')} ${chalk.blue.underline(webUrl)}`);
+  }
+  
+  console.log('');
+}
+
 async function createWorkItem(configManager: ConfigManager, options: any): Promise<void> {
   const client = new AdoApiClient(configManager);
   
@@ -471,29 +608,28 @@ async function reopenWorkItem(configManager: ConfigManager, id: number, options:
   }
 }
 
-async function viewWorkItem(configManager: ConfigManager, id: number): Promise<void> {
+async function viewWorkItem(configManager: ConfigManager, id: number, options: any = {}): Promise<void> {
   const client = new AdoApiClient(configManager);
   
   const spinner = ora(`Fetching work item #${id}...`).start();
   
   try {
     const workItem = await client.getWorkItem(id);
-    spinner.succeed(`Work item #${id} found`);
+    spinner.succeed(`Work item #${id} loaded`);
     
-    const webUrl = workItem._links?.html?.href;
-    if (webUrl) {
-      console.log('');
-      console.log(chalk.green(`✅ Opening work item #${id} in browser`));
-      console.log(`📝 Title: ${workItem.fields['System.Title']}`);
-      console.log(`🔗 URL: ${chalk.blue(webUrl)}`);
-      
-      const open = require('open');
-      await open(webUrl);
-    } else {
-      throw new Error('Work item URL not available');
+    displayDetailedWorkItem(workItem);
+    
+    if (options.web) {
+      const webUrl = workItem._links?.html?.href;
+      if (webUrl) {
+        console.log('');
+        console.log(chalk.cyan('🌐 Opening in browser...'));
+        const open = require('open');
+        await open(webUrl);
+      }
     }
   } catch (error) {
-    spinner.fail(`Failed to open work item #${id}`);
+    spinner.fail(`Failed to fetch work item #${id}`);
     throw error;
   }
 }
