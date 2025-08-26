@@ -258,7 +258,7 @@ function displayWorkItems(workItems: WorkItem[], options: any = {}): void {
     const webUrl = wi._links?.html?.href || '';
     const clickableId = webUrl ? chalk.blue.underline(id) : id;
     const state = getStateWithColor(wi.fields['System.State'].toUpperCase());
-    const type = wi.fields['System.WorkItemType'];
+    const type = getTypeWithColor(wi.fields['System.WorkItemType']);
     const assignee = wi.fields['System.AssignedTo']?.displayName || 'Unassigned';
     const title = truncateText(wi.fields['System.Title'], options.full ? 78 : 48);
     
@@ -314,6 +314,16 @@ function getStateWithColor(state: string): string {
   
   const colorFn = stateColors[upperState] || chalk.white;
   return colorFn(upperState);
+}
+
+function getTypeWithColor(type: string): string {
+  const typeColors: Record<string, (text: string) => string> = {
+    'EPIC': chalk.yellow,
+    'FEATURE': chalk.blue
+  };
+  
+  const colorFn = typeColors[type.toUpperCase()] || chalk.white;
+  return colorFn(type);
 }
 
 async function createWorkItem(configManager: ConfigManager, options: any): Promise<void> {
