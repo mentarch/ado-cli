@@ -133,6 +133,34 @@ export function createWorkItemCommand(configManager: ConfigManager): Command {
       }
     });
 
+  command
+    .command('edit <id>')
+    .description('Edit a work item')
+    .option('-a, --assignee <user>', 'Change assignee (@me for current user, empty string to unassign)')
+    .option('-b, --body <text>', 'Update description')
+    .option('-t, --title <title>', 'Update title')
+    .option('-s, --state <state>', 'Change state')
+    .option('-p, --priority <1-4>', 'Set priority level (1=highest, 4=lowest)')
+    .option('-l, --label <labels>', 'Update labels/tags (comma-separated)')
+    .option('--area <path>', 'Change area path')
+    .option('--iteration <path>', 'Change iteration path')
+    .option('--add-label <labels>', 'Add labels/tags (comma-separated)')
+    .option('--remove-label <labels>', 'Remove labels/tags (comma-separated)')
+    .option('-R, --repo <org/project>', 'Target organization/project')
+    .action(async (id, options) => {
+      try {
+        if (options.repo) {
+          configManager.setRepository(options.repo);
+        }
+
+        await authManager.ensureAuthenticated();
+        await editWorkItem(configManager, parseInt(id), options);
+      } catch (error) {
+        console.error(chalk.red(`Error: ${error}`));
+        process.exit(1);
+      }
+    });
+
   return command;
 }
 
@@ -604,6 +632,338 @@ async function reopenWorkItem(configManager: ConfigManager, id: number, options:
     console.log(`📊 State: ${getStateWithColor(workItem.fields['System.State'])}`);
   } catch (error) {
     spinner.fail(`Failed to reopen work item #${id}`);
+    throw error;
+  }
+}
+
+async function editWorkItem(configManager: ConfigManager, id: number, options: any): Promise<void> {
+  const client = new AdoApiClient(configManager);
+  
+  // First, fetch the current work item to show current values
+  const spinner = ora(`Fetching work item #${id}...`).start();
+  
+  let currentWorkItem: WorkItem;
+  try {
+    currentWorkItem = await client.getWorkItem(id);
+    spinner.succeed(`Work item #${id} loaded`);
+  } catch (error) {
+    spinner.fail(`Failed to fetch work item #${id}`);
+    throw error;
+  }
+
+  const fields = currentWorkItem.fields;
+  const operations: WorkItemUpdateRequest[] = [];
+  
+  // Check if any flags were provided for direct updates
+  const hasDirectUpdates = !!(
+    options.title || options.body || options.assignee !== undefined || 
+    options.state || options.priority || options.label || 
+    options.area || options.iteration || options.addLabel || options.removeLabel
+  );
+  
+  if (hasDirectUpdates) {
+    // Direct updates via flags
+    if (options.title) {
+      operations.push({ op: 'replace', path: '/fields/System.Title', value: options.title });
+    }
+    
+    if (options.body !== undefined) {
+      operations.push({ op: 'replace', path: '/fields/System.Description', value: options.body });
+    }
+    
+    if (options.assignee !== undefined) {
+      if (options.assignee === '') {
+        operations.push({ op: 'remove', path: '/fields/System.AssignedTo' });
+      } else {
+        const assignee = options.assignee === '@me' ? '@Me' : options.assignee;
+        operations.push({ op: 'replace', path: '/fields/System.AssignedTo', value: assignee });
+      }
+    }
+    
+    if (options.state) {
+      operations.push({ op: 'replace', path: '/fields/System.State', value: options.state });
+    }
+    
+    if (options.priority) {
+      const priority = parseInt(options.priority);
+      if (priority >= 1 && priority <= 4) {
+        operations.push({ op: 'replace', path: '/fields/Microsoft.VSTS.Common.Priority', value: priority });
+      } else {
+        throw new Error('Priority must be between 1 and 4');
+      }
+    }
+    
+    if (options.area) {
+      operations.push({ op: 'replace', path: '/fields/System.AreaPath', value: options.area });
+    }
+    
+    if (options.iteration) {
+      operations.push({ op: 'replace', path: '/fields/System.IterationPath', value: options.iteration });
+    }
+    
+    // Handle label operations
+    if (options.label) {
+      const tags = options.label.split(',').map((tag: string) => tag.trim()).join(';');
+      operations.push({ op: 'replace', path: '/fields/System.Tags', value: tags });
+    } else if (options.addLabel || options.removeLabel) {
+      const currentTags = fields['System.Tags'] ? fields['System.Tags'].split(';').map((tag: string) => tag.trim()) : [];
+      let updatedTags = [...currentTags];
+      
+      if (options.addLabel) {
+        const tagsToAdd = options.addLabel.split(',').map((tag: string) => tag.trim());
+        tagsToAdd.forEach((tag: string) => {
+          if (!updatedTags.includes(tag)) {
+            updatedTags.push(tag);
+          }
+        });
+      }
+      
+      if (options.removeLabel) {
+        const tagsToRemove = options.removeLabel.split(',').map((tag: string) => tag.trim());
+        updatedTags = updatedTags.filter(tag => !tagsToRemove.includes(tag));
+      }
+      
+      const finalTags = updatedTags.join(';');
+      operations.push({ op: 'replace', path: '/fields/System.Tags', value: finalTags });
+    }
+  } else {
+    // Interactive mode
+    console.log('');
+    console.log(chalk.cyan(`Editing work item #${id}: ${fields['System.Title']}`));
+    console.log(chalk.dim('─'.repeat(Math.min(process.stdout.columns || 80, 60))));
+    
+    const editChoices = [
+      { name: `Title: ${chalk.yellow(fields['System.Title'])}`, value: 'title' },
+      { name: `Assignee: ${fields['System.AssignedTo']?.displayName || chalk.dim('Unassigned')}`, value: 'assignee' },
+      { name: `State: ${getStateWithColor(fields['System.State'])}`, value: 'state' },
+      { name: `Priority: ${fields['Microsoft.VSTS.Common.Priority'] || chalk.dim('Not set')}`, value: 'priority' },
+      { name: `Description: ${fields['System.Description'] ? chalk.green('Set') : chalk.dim('Not set')}`, value: 'description' },
+      { name: `Tags: ${fields['System.Tags'] || chalk.dim('None')}`, value: 'tags' },
+      { name: `Area Path: ${fields['System.AreaPath'] || chalk.dim('Default')}`, value: 'area' },
+      { name: `Iteration Path: ${fields['System.IterationPath'] || chalk.dim('Default')}`, value: 'iteration' },
+      { name: chalk.green('✓ Save changes'), value: 'save' },
+      { name: chalk.red('✗ Cancel'), value: 'cancel' }
+    ];
+    
+    const pendingOperations: WorkItemUpdateRequest[] = [];
+    let continueEditing = true;
+    
+    while (continueEditing) {
+      const { action } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'action',
+          message: 'What would you like to edit?',
+          choices: editChoices
+        }
+      ]);
+      
+      switch (action) {
+        case 'title':
+          const { newTitle } = await inquirer.prompt([
+            {
+              type: 'input',
+              name: 'newTitle',
+              message: 'New title:',
+              default: fields['System.Title'],
+              validate: (input: string) => input.trim() ? true : 'Title cannot be empty'
+            }
+          ]);
+          if (newTitle !== fields['System.Title']) {
+            pendingOperations.push({ op: 'replace', path: '/fields/System.Title', value: newTitle });
+            editChoices[0].name = `Title: ${chalk.yellow(newTitle)}`;
+          }
+          break;
+          
+        case 'assignee':
+          const { assigneeAction } = await inquirer.prompt([
+            {
+              type: 'list',
+              name: 'assigneeAction',
+              message: 'Assignee action:',
+              choices: [
+                { name: 'Assign to me', value: '@me' },
+                { name: 'Assign to someone else', value: 'other' },
+                { name: 'Unassign', value: 'unassign' },
+                { name: 'Cancel', value: 'cancel' }
+              ]
+            }
+          ]);
+          
+          if (assigneeAction === '@me') {
+            pendingOperations.push({ op: 'replace', path: '/fields/System.AssignedTo', value: '@Me' });
+            editChoices[1].name = `Assignee: ${chalk.green('You')}`;
+          } else if (assigneeAction === 'other') {
+            const { assigneeName } = await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'assigneeName',
+                message: 'Assignee (username or email):',
+                validate: (input: string) => input.trim() ? true : 'Assignee cannot be empty'
+              }
+            ]);
+            pendingOperations.push({ op: 'replace', path: '/fields/System.AssignedTo', value: assigneeName });
+            editChoices[1].name = `Assignee: ${chalk.green(assigneeName)}`;
+          } else if (assigneeAction === 'unassign') {
+            pendingOperations.push({ op: 'remove', path: '/fields/System.AssignedTo' });
+            editChoices[1].name = `Assignee: ${chalk.dim('Unassigned')}`;
+          }
+          break;
+          
+        case 'state':
+          const { newState } = await inquirer.prompt([
+            {
+              type: 'input',
+              name: 'newState',
+              message: 'New state:',
+              default: fields['System.State'],
+              validate: (input: string) => input.trim() ? true : 'State cannot be empty'
+            }
+          ]);
+          if (newState !== fields['System.State']) {
+            pendingOperations.push({ op: 'replace', path: '/fields/System.State', value: newState });
+            editChoices[2].name = `State: ${getStateWithColor(newState)}`;
+          }
+          break;
+          
+        case 'priority':
+          const { newPriority } = await inquirer.prompt([
+            {
+              type: 'list',
+              name: 'newPriority',
+              message: 'Select priority:',
+              choices: [
+                { name: '1 - Critical (Red)', value: 1 },
+                { name: '2 - High (Yellow)', value: 2 },
+                { name: '3 - Medium (Blue)', value: 3 },
+                { name: '4 - Low (Gray)', value: 4 },
+                { name: 'Remove priority', value: null }
+              ],
+              default: fields['Microsoft.VSTS.Common.Priority'] || 3
+            }
+          ]);
+          
+          if (newPriority === null) {
+            pendingOperations.push({ op: 'remove', path: '/fields/Microsoft.VSTS.Common.Priority' });
+            editChoices[3].name = `Priority: ${chalk.dim('Not set')}`;
+          } else if (newPriority !== fields['Microsoft.VSTS.Common.Priority']) {
+            pendingOperations.push({ op: 'replace', path: '/fields/Microsoft.VSTS.Common.Priority', value: newPriority });
+            const priorityColors = [chalk.red, chalk.yellow, chalk.blue, chalk.gray];
+            const priorityColor = priorityColors[newPriority - 1];
+            editChoices[3].name = `Priority: ${priorityColor(newPriority.toString())}`;
+          }
+          break;
+          
+        case 'description':
+          const { newDescription } = await inquirer.prompt([
+            {
+              type: 'editor',
+              name: 'newDescription',
+              message: 'Update description:',
+              default: fields['System.Description'] || ''
+            }
+          ]);
+          
+          if (newDescription !== (fields['System.Description'] || '')) {
+            pendingOperations.push({ op: 'replace', path: '/fields/System.Description', value: newDescription });
+            editChoices[4].name = `Description: ${newDescription ? chalk.green('Updated') : chalk.dim('Cleared')}`;
+          }
+          break;
+          
+        case 'tags':
+          const { newTags } = await inquirer.prompt([
+            {
+              type: 'input',
+              name: 'newTags',
+              message: 'Tags (comma-separated):',
+              default: fields['System.Tags'] ? fields['System.Tags'].replace(/;/g, ', ') : ''
+            }
+          ]);
+          
+          const formattedTags = newTags ? newTags.split(',').map((tag: string) => tag.trim()).join(';') : '';
+          if (formattedTags !== (fields['System.Tags'] || '')) {
+            if (formattedTags) {
+              pendingOperations.push({ op: 'replace', path: '/fields/System.Tags', value: formattedTags });
+              editChoices[5].name = `Tags: ${chalk.cyan(formattedTags.replace(/;/g, ', '))}`;
+            } else {
+              pendingOperations.push({ op: 'remove', path: '/fields/System.Tags' });
+              editChoices[5].name = `Tags: ${chalk.dim('None')}`;
+            }
+          }
+          break;
+          
+        case 'area':
+          const { newArea } = await inquirer.prompt([
+            {
+              type: 'input',
+              name: 'newArea',
+              message: 'Area path:',
+              default: fields['System.AreaPath']
+            }
+          ]);
+          
+          if (newArea !== fields['System.AreaPath']) {
+            pendingOperations.push({ op: 'replace', path: '/fields/System.AreaPath', value: newArea });
+            editChoices[6].name = `Area Path: ${newArea || chalk.dim('Default')}`;
+          }
+          break;
+          
+        case 'iteration':
+          const { newIteration } = await inquirer.prompt([
+            {
+              type: 'input',
+              name: 'newIteration',
+              message: 'Iteration path:',
+              default: fields['System.IterationPath']
+            }
+          ]);
+          
+          if (newIteration !== fields['System.IterationPath']) {
+            pendingOperations.push({ op: 'replace', path: '/fields/System.IterationPath', value: newIteration });
+            editChoices[7].name = `Iteration Path: ${newIteration || chalk.dim('Default')}`;
+          }
+          break;
+          
+        case 'save':
+          operations.push(...pendingOperations);
+          continueEditing = false;
+          break;
+          
+        case 'cancel':
+          console.log(chalk.yellow('Edit cancelled.'));
+          return;
+      }
+    }
+  }
+  
+  if (operations.length === 0) {
+    console.log(chalk.yellow('No changes to save.'));
+    return;
+  }
+  
+  // Apply the updates
+  const updateSpinner = ora('Updating work item...').start();
+  
+  try {
+    const updatedWorkItem = await client.updateWorkItem(id, operations);
+    updateSpinner.succeed(`Work item #${id} updated successfully`);
+    
+    console.log('');
+    console.log(chalk.green(`✅ Work item #${id} updated`));
+    console.log(`📝 Title: ${updatedWorkItem.fields['System.Title']}`);
+    console.log(`📊 State: ${getStateWithColor(updatedWorkItem.fields['System.State'])}`);
+    
+    if (updatedWorkItem.fields['System.AssignedTo']) {
+      console.log(`👤 Assignee: ${chalk.green(updatedWorkItem.fields['System.AssignedTo'].displayName)}`);
+    }
+    
+    const webUrl = updatedWorkItem._links?.html?.href;
+    if (webUrl) {
+      console.log(`🔗 URL: ${chalk.blue.underline(webUrl)}`);
+    }
+    
+  } catch (error) {
+    updateSpinner.fail(`Failed to update work item #${id}`);
     throw error;
   }
 }
