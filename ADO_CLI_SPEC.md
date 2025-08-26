@@ -77,21 +77,28 @@ ado workitem list --state Active --type Bug
 ado workitem list --search "login" --limit 10
 ```
 
-#### `ado workitem view <id>`
-Display detailed information about a specific work item.
+#### `ado workitem view <id>` ✅ IMPLEMENTED
+Display detailed information about a specific work item with rich terminal formatting.
+
+**Features:**
+- Rich terminal display with color-coded states and work item types
+- Smart date formatting (today, yesterday, N days ago)
+- HTML description parsing with clean text rendering
+- Field-by-field breakdown including assignee, priority, area/iteration paths
+- Optional browser opening after terminal display
 
 **Flags:**
-- `--web` - Open work item in browser
-- `--comments` - Include comments/discussion threads
-- `-q, --jq <expression>` - Filter JSON output using jq expression
-- `--json <fields>` - Output JSON with specified fields
-- `-t, --template <string>` - Format JSON output using Go template
+- `--web` - Open work item in browser after displaying details
+- `--comments` - Include comments/discussion threads *(planned)*
+- `-q, --jq <expression>` - Filter JSON output using jq expression *(planned)*
+- `--json <fields>` - Output JSON with specified fields *(planned)*
+- `-t, --template <string>` - Format JSON output using Go template *(planned)*
 
 **Examples:**
 ```bash
-ado workitem view 123
-ado workitem view 123 --web
-ado workitem view 123 --comments
+ado workitem view 123                    # Rich terminal display
+ado workitem view 123 --web             # Display in terminal then open browser
+ado workitem view 123 --comments        # Include comments (planned)
 ```
 
 #### `ado workitem status`
@@ -129,26 +136,40 @@ ado workitem reopen 123
 ado workitem reopen 123 --comment "Issue persists"
 ```
 
-#### `ado workitem edit <id>`
-Edit work item properties.
+#### `ado workitem edit <id>` ✅ IMPLEMENTED
+Edit work item properties with dual-mode functionality: interactive guided editing or direct flag-based updates.
+
+**Modes:**
+1. **Interactive Mode**: Menu-driven editing with live preview of changes
+2. **Direct Mode**: Quick updates using command-line flags
+
+**Features:**
+- Live preview of field changes in interactive mode
+- Smart tag operations (replace all, add specific, remove specific)
+- Priority validation with color-coded display (1=red, 2=yellow, 3=blue, 4=gray)
+- Assignment handling including `@me` shortcut and unassignment
+- Comprehensive field coverage including title, description, state, priority, assignee, tags, area/iteration paths
 
 **Flags:**
-- `-a, --assignee <user>` - Change assignee
+- `-a, --assignee <user>` - Change assignee (@me for current user, empty string to unassign)
 - `-b, --body <text>` - Update description
-- `-l, --label <label>` - Update labels
-- `-p, --priority <1-4>` - Change priority
-- `-s, --state <state>` - Change state
 - `-t, --title <title>` - Update title
-- `-T, --type <type>` - Change work item type
+- `-s, --state <state>` - Change state
+- `-p, --priority <1-4>` - Set priority level (1=highest, 4=lowest)
+- `-l, --label <labels>` - Update labels/tags (comma-separated)
 - `--area <path>` - Change area path
 - `--iteration <path>` - Change iteration path
-- `--add-label <label>` - Add label without replacing existing
-- `--remove-label <label>` - Remove specific label
+- `--add-label <labels>` - Add labels/tags (comma-separated)
+- `--remove-label <labels>` - Remove labels/tags (comma-separated)
+- `-T, --type <type>` - Change work item type *(not implemented)*
 
 **Examples:**
 ```bash
-ado workitem edit 123 --assignee john.doe
-ado workitem edit 123 --state Active --priority 1
+ado workitem edit 123                                    # Interactive mode
+ado workitem edit 123 --assignee @me --priority 1       # Quick assignment + priority
+ado workitem edit 123 --title "New title" --state "In Progress"
+ado workitem edit 123 --add-label "urgent,frontend" --area "MyTeam\\UI"
+ado workitem edit 123 --assignee "" --remove-label "duplicate"  # Unassign + remove tag
 ```
 
 #### `ado workitem comment <id>`

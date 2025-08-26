@@ -10,11 +10,11 @@
 | `gh issue close` | `ado workitem close` | ✅ Completed | State transition to Closed |
 | `gh issue reopen` | `ado workitem reopen` | ✅ Completed | State transition to Active |
 
-### Phase 2: Extended Work Item Management
+### Phase 2: Extended Work Item Management 🔄 IN PROGRESS
 | GitHub CLI Feature | ADO CLI Equivalent | Status | Notes |
 |-------------------|-------------------|---------|-------|
-| `gh issue view` | `ado workitem view` | ⏳ Planned | Detailed work item display |
-| `gh issue edit` | `ado workitem edit` | ⏳ Planned | Field updates |
+| `gh issue view` | `ado workitem view` | ✅ Completed | Rich terminal display, optional browser |
+| `gh issue edit` | `ado workitem edit` | ✅ Completed | Interactive + direct flag modes |
 | `gh issue comment` | `ado workitem comment` | ⏳ Planned | Add comments/discussions |
 | `gh issue status` | `ado workitem status` | ⏳ Planned | User-relevant work items |
 
@@ -84,6 +84,9 @@
 - [x] Work item list command with full filtering
 - [x] Work item create command with interactive prompts
 - [x] Work item state change commands (close/reopen)
+- [x] Work item view command with rich terminal display
+- [x] Work item edit command (interactive + direct modes)
+- [x] Work item type color coding (Epic=yellow, Feature=blue)
 - [x] Argument parsing and validation
 - [x] Error handling and user feedback
 - [x] CLI build and basic testing
@@ -93,11 +96,14 @@
 - [ ] JSON/template output formats
 - [ ] Advanced error scenarios
 
-### ⏳ Next Up (Phase 2)
-- [ ] `ado workitem view` command
-- [ ] `ado workitem edit` command
+### ⏳ Next Up (Phase 2 Completion)
 - [ ] `ado workitem comment` command
 - [ ] `ado workitem status` command
+
+### 🎯 Quick Wins (Phase 2.5)
+- [ ] Output formats (`--json`, `--csv`, `--template`)
+- [ ] Bulk operations (`ado workitem close 123 124 125`)
+- [ ] Work item templates for common types
 
 ## Technical Decisions
 

@@ -83,6 +83,8 @@ The CLI uses Azure DevOps Personal Access Tokens (PAT) for authentication:
 ### Work Items
 - `ado workitem list` - List work items
 - `ado workitem create` - Create a new work item
+- `ado workitem view <id>` - View detailed work item information
+- `ado workitem edit <id>` - Edit a work item (interactive or direct)
 - `ado workitem close <id>` - Close a work item
 - `ado workitem reopen <id>` - Reopen a work item
 
@@ -102,6 +104,23 @@ ado workitem create --title "New feature" --body "Description here"
 ado workitem create --priority 1 --area "MyTeam\\Backend"
 ```
 
+#### Work Item Viewing & Editing
+```bash
+# View detailed work item information in terminal
+ado workitem view 123
+
+# View and open in browser
+ado workitem view 123 --web
+
+# Interactive editing (guided menu)
+ado workitem edit 123
+
+# Direct field updates via flags
+ado workitem edit 123 --assignee @me --priority 2
+ado workitem edit 123 --title "New title" --state "In Progress"
+ado workitem edit 123 --add-label "urgent,frontend" --area "MyTeam\\UI"
+```
+
 ## Global Options
 
 - `-R, --repo <org/project>` - Target specific organization/project
@@ -116,6 +135,15 @@ ado workitem list --assignee @me
 
 # Create a bug with high priority
 ado workitem create --title "Critical login issue" --type Bug --priority 1 --assignee @me
+
+# View a work item with rich terminal display
+ado workitem view 123
+
+# Quick edit: assign to yourself and set high priority
+ado workitem edit 123 --assignee @me --priority 1 --add-label "urgent"
+
+# Interactive editing with guided prompts
+ado workitem edit 123
 
 # Close a work item with a comment
 ado workitem close 123 --comment "Fixed in latest deployment"
