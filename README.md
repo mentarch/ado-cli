@@ -34,7 +34,7 @@ npm link
 
 ### System Requirements
 
-- Node.js 16 or higher
+- Node.js 17 or higher
 - npm 7 or higher
 
 ## Quick Start
