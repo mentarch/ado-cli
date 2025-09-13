@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { ConfigManager } from '../config';
-import { WorkItem, WorkItemType, CreateWorkItemRequest, WorkItemUpdateRequest, AdoApiResponse, PullRequest, CreatePullRequestRequest } from '../types';
+import { WorkItem, WorkItemComment, WorkItemType, CreateWorkItemRequest, WorkItemUpdateRequest, AdoApiResponse, PullRequest, CreatePullRequestRequest } from '../types';
 
 export class AdoApiClient {
   private client: AxiosInstance;
