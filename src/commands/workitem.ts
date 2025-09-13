@@ -6,7 +6,7 @@ import Table from 'cli-table3';
 import { ConfigManager } from '../config';
 import { AdoApiClient } from '../api/client';
 import { AuthManager } from '../auth';
-import { WorkItem, WorkItemType, CreateWorkItemRequest, ListWorkItemsOptions, WorkItemUpdateRequest } from '../types';
+import { WorkItem, WorkItemType, CreateWorkItemRequest, ListWorkItemsOptions, WorkItemUpdateRequest, WorkItemComment } from '../types';
 
 export function createWorkItemCommand(configManager: ConfigManager): Command {
   const command = new Command('workitem');
@@ -108,6 +108,30 @@ export function createWorkItemCommand(configManager: ConfigManager): Command {
 
         await authManager.ensureAuthenticated();
         await reopenWorkItem(configManager, parseInt(id), options);
+      } catch (error) {
+        console.error(chalk.red(`Error: ${error}`));
+        process.exit(1);
+      }
+    });
+
+  command
+    .command('comment <id>')
+    .description('List or add comments to a work item')
+    .option('-b, --body <text>', 'Comment body')
+    .option('-R, --repo <org/project>', 'Target organization/project')
+    .action(async (id, options) => {
+      try {
+        if (options.repo) {
+          configManager.setRepository(options.repo);
+        }
+
+        await authManager.ensureAuthenticated();
+        const workItemId = parseInt(id);
+        if (options.body) {
+          await addComment(configManager, workItemId, options.body);
+        } else {
+          await listComments(configManager, workItemId);
+        }
       } catch (error) {
         console.error(chalk.red(`Error: ${error}`));
         process.exit(1);
@@ -632,6 +656,49 @@ async function reopenWorkItem(configManager: ConfigManager, id: number, options:
     console.log(`📊 State: ${getStateWithColor(workItem.fields['System.State'])}`);
   } catch (error) {
     spinner.fail(`Failed to reopen work item #${id}`);
+    throw error;
+  }
+}
+
+async function listComments(configManager: ConfigManager, id: number): Promise<void> {
+  const client = new AdoApiClient(configManager);
+  const spinner = ora(`Fetching comments for work item #${id}...`).start();
+
+  try {
+    const comments: WorkItemComment[] = await client.getWorkItemComments(id);
+    spinner.succeed(`Found ${comments.length} comments`);
+
+    if (comments.length === 0) {
+      console.log(chalk.yellow('No comments found.'));
+      return;
+    }
+
+    console.log('');
+    comments.forEach(comment => {
+      const header = `${chalk.cyan(`#${comment.id}`)} ${comment.createdBy.displayName} - ${new Date(comment.createdDate).toLocaleString()}`;
+      console.log(header);
+      console.log(comment.text);
+      console.log('');
+    });
+  } catch (error) {
+    spinner.fail(`Failed to fetch comments for work item #${id}`);
+    throw error;
+  }
+}
+
+async function addComment(configManager: ConfigManager, id: number, text: string): Promise<void> {
+  const client = new AdoApiClient(configManager);
+  const spinner = ora(`Adding comment to work item #${id}...`).start();
+
+  try {
+    const comment: WorkItemComment = await client.createWorkItemComment(id, text);
+    spinner.succeed(`Comment #${comment.id} added`);
+
+    console.log('');
+    console.log(chalk.green(`✅ Comment added by ${comment.createdBy.displayName}`));
+    console.log(comment.text);
+  } catch (error) {
+    spinner.fail(`Failed to add comment to work item #${id}`);
     throw error;
   }
 }
