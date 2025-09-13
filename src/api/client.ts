@@ -207,14 +207,14 @@ export class AdoApiClient {
     const baseUrl = this.getBaseUrl();
     const project = this.getProject();
 
-    const response = await this.client.get<AdoApiResponse<WorkItemComment>>(
+    const response = await this.client.get<{ comments: WorkItemComment[], totalCount: number, count: number }>(
       `${baseUrl}/${project}/_apis/wit/workitems/${id}/comments`,
       {
         params: { 'api-version': '7.1-preview.3' }
       }
     );
 
-    return response.data.value;
+    return response.data.comments || [];
   }
 
   async createWorkItemComment(id: number, text: string): Promise<WorkItemComment> {

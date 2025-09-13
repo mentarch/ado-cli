@@ -677,7 +677,17 @@ async function listComments(configManager: ConfigManager, id: number): Promise<v
     comments.forEach(comment => {
       const header = `${chalk.cyan(`#${comment.id}`)} ${comment.createdBy.displayName} - ${new Date(comment.createdDate).toLocaleString()}`;
       console.log(header);
-      console.log(comment.text);
+
+      // Clean HTML from comment text
+      const cleanText = comment.text
+        .replace(/<[^>]*>/g, '')  // Remove HTML tags
+        .replace(/&nbsp;/g, ' ')  // Replace &nbsp; with spaces
+        .replace(/&amp;/g, '&')   // Replace &amp; with &
+        .replace(/&lt;/g, '<')    // Replace &lt; with <
+        .replace(/&gt;/g, '>')    // Replace &gt; with >
+        .trim();
+
+      console.log(cleanText);
       console.log('');
     });
   } catch (error) {

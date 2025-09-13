@@ -48,7 +48,28 @@ export interface WorkItemComment {
   createdBy: {
     displayName: string;
     uniqueName: string;
+    id: string;
+    url?: string;
+    imageUrl?: string;
+    _links?: any;
+    descriptor?: string;
   };
+  modifiedBy?: {
+    displayName: string;
+    uniqueName: string;
+    id: string;
+    url?: string;
+    imageUrl?: string;
+    _links?: any;
+    descriptor?: string;
+  };
+  modifiedDate?: string;
+  version?: number;
+  workItemId?: number;
+  format?: string;
+  renderedText?: string;
+  url?: string;
+  mentions?: any[];
 }
 
 export interface WorkItemType {
