@@ -87,6 +87,7 @@ The CLI uses Azure DevOps Personal Access Tokens (PAT) for authentication:
 - `ado workitem edit <id>` - Edit a work item (interactive or direct)
 - `ado workitem close <id>` - Close a work item
 - `ado workitem reopen <id>` - Reopen a work item
+- `ado workitem comment <id>` - List or add comments on a work item
 
 ### Pull Requests
 - `ado pr list --repository <repo>` - List pull requests
@@ -152,6 +153,10 @@ ado workitem edit 123
 
 # Close a work item with a comment
 ado workitem close 123 --comment "Fixed in latest deployment"
+
+# List and add comments on a work item
+ado workitem comment 123
+ado workitem comment 123 --body "Looks good"
 
 # Work with a different project temporarily
 ado workitem list -R myorg/otherproject --state Active
