@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { ConfigManager } from '../config';
-import { WorkItem, WorkItemType, CreateWorkItemRequest, WorkItemUpdateRequest, AdoApiResponse } from '../types';
+import { WorkItem, WorkItemType, CreateWorkItemRequest, WorkItemUpdateRequest, WorkItemComment, AdoApiResponse } from '../types';
 
 export class AdoApiClient {
   private client: AxiosInstance;
@@ -200,6 +200,36 @@ export class AdoApiClient {
       }
     );
     
+    return response.data;
+  }
+
+  async getWorkItemComments(id: number): Promise<WorkItemComment[]> {
+    const baseUrl = this.getBaseUrl();
+    const project = this.getProject();
+
+    const response = await this.client.get<AdoApiResponse<WorkItemComment>>(
+      `${baseUrl}/${project}/_apis/wit/workitems/${id}/comments`,
+      {
+        params: { 'api-version': '7.1-preview.3' }
+      }
+    );
+
+    return response.data.value;
+  }
+
+  async createWorkItemComment(id: number, text: string): Promise<WorkItemComment> {
+    const baseUrl = this.getBaseUrl();
+    const project = this.getProject();
+
+    const response = await this.client.post<WorkItemComment>(
+      `${baseUrl}/${project}/_apis/wit/workitems/${id}/comments`,
+      { text },
+      {
+        params: { 'api-version': '7.1-preview.3' },
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+
     return response.data;
   }
 

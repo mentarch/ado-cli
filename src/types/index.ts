@@ -41,6 +41,16 @@ export interface WorkItem {
   url: string;
 }
 
+export interface WorkItemComment {
+  id: number;
+  text: string;
+  createdDate: string;
+  createdBy: {
+    displayName: string;
+    uniqueName: string;
+  };
+}
+
 export interface WorkItemType {
   name: string;
   referenceName: string;
