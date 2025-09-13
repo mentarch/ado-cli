@@ -48,6 +48,28 @@ export function createWorkItemCommand(configManager: ConfigManager): Command {
     });
 
   command
+    .command('status')
+    .description('Show work items assigned to, created by, or mentioning the current user')
+    .option('-L, --limit <number>', 'Maximum number of items to fetch', '30')
+    .option('--table', 'Show results in a table instead of grouped counts')
+    .option('--full', 'Show full titles (no truncation)')
+    .option('--web', 'Open work items in browser when clicked')
+    .option('-R, --repo <org/project>', 'Target organization/project')
+    .action(async (options) => {
+      try {
+        if (options.repo) {
+          configManager.setRepository(options.repo);
+        }
+
+        await authManager.ensureAuthenticated();
+        await statusWorkItems(configManager, options);
+      } catch (error) {
+        console.error(chalk.red(`Error: ${error}`));
+        process.exit(1);
+      }
+    });
+
+  command
     .command('create')
     .description('Create a new work item')
     .option('-a, --assignee <user>', 'Assign work item to user')
@@ -217,6 +239,50 @@ async function listWorkItems(configManager: ConfigManager, options: ListWorkItem
   }
 }
 
+async function statusWorkItems(configManager: ConfigManager, options: any): Promise<void> {
+  const spinner = ora('Fetching work items...').start();
+
+  try {
+    const client = new AdoApiClient(configManager);
+    const project = configManager.getProject();
+    if (!project) {
+      throw new Error('Project not configured. Use -R organization/project or set default repository.');
+    }
+
+    const wiql = buildStatusWiqlQuery(project);
+    const limit = parseInt(options.limit?.toString() || '30');
+
+    spinner.text = 'Executing query...';
+    const workItems = await client.getWorkItems(wiql, limit);
+
+    spinner.succeed(`Found ${workItems.length} work items`);
+
+    if (workItems.length === 0) {
+      console.log(chalk.yellow('No work items found matching the criteria.'));
+      return;
+    }
+
+    if (options.table) {
+      displayWorkItems(workItems, options);
+    } else {
+      const counts: Record<string, number> = {};
+      workItems.forEach(wi => {
+        const state = wi.fields['System.State'] || 'Unknown';
+        counts[state] = (counts[state] || 0) + 1;
+      });
+
+      console.log('');
+      console.log(chalk.cyan('Work Item Counts by State:'));
+      Object.entries(counts).forEach(([state, count]) => {
+        console.log(`${getStateWithColor(state.toUpperCase())}: ${count}`);
+      });
+    }
+  } catch (error) {
+    spinner.fail('Failed to fetch work items');
+    throw error;
+  }
+}
+
 function buildWiqlQuery(options: ListWorkItemsOptions, project: string): string {
   let whereClause = `[System.TeamProject] = '${project}'`;
   
@@ -253,6 +319,11 @@ function buildWiqlQuery(options: ListWorkItemsOptions, project: string): string 
   const orderBy = getOrderByClause(options.sort || 'created', options.order || 'desc');
   
   return `SELECT [System.Id], [System.Title], [System.WorkItemType], [System.State], [System.AssignedTo], [System.CreatedDate] FROM WorkItems WHERE ${whereClause} ORDER BY ${orderBy}`;
+}
+
+function buildStatusWiqlQuery(project: string): string {
+  const whereClause = `[System.TeamProject] = '${project}' AND ([System.AssignedTo] = @Me OR [System.CreatedBy] = @Me OR [System.History] CONTAINS @Me)`;
+  return `SELECT [System.Id], [System.Title], [System.WorkItemType], [System.State], [System.AssignedTo], [System.CreatedDate] FROM WorkItems WHERE ${whereClause} ORDER BY [System.ChangedDate] DESC`;
 }
 
 function getOrderByClause(sort: string, order: string): string {
