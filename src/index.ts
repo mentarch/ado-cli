@@ -6,6 +6,7 @@ import { ConfigManager } from './config';
 import { createAuthCommand } from './commands/auth';
 import { createWorkItemCommand } from './commands/workitem';
 import { createRepoCommand } from './commands/repo';
+import { createPrCommand } from './commands/pr';
 
 const program = new Command();
 const configManager = new ConfigManager();
@@ -18,6 +19,7 @@ program
 program.addCommand(createAuthCommand(configManager));
 program.addCommand(createWorkItemCommand(configManager));
 program.addCommand(createRepoCommand(configManager));
+program.addCommand(createPrCommand(configManager));
 
 program.configureHelp({
   sortSubcommands: true,

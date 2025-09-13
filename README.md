@@ -89,6 +89,11 @@ The CLI uses Azure DevOps Personal Access Tokens (PAT) for authentication:
 - `ado workitem reopen <id>` - Reopen a work item
 - `ado workitem comment <id>` - List or add comments on a work item
 
+### Pull Requests
+- `ado pr list --repository <repo>` - List pull requests
+- `ado pr view <id> --repository <repo>` - View a pull request
+- `ado pr create --repository <repo> --source <branch> --target <branch> --title "My PR"` - Create a pull request
+
 #### Work Item Listing Options
 ```bash
 ado workitem list --assignee @me          # Items assigned to you
@@ -155,6 +160,15 @@ ado workitem comment 123 --body "Looks good"
 
 # Work with a different project temporarily
 ado workitem list -R myorg/otherproject --state Active
+
+# List pull requests in a repository
+ado pr list --repository MyRepo
+
+# View a pull request
+ado pr view 42 --repository MyRepo
+
+# Create a pull request
+ado pr create --repository MyRepo --source feature --target main --title "Add feature"
 ```
 
 ## Development
