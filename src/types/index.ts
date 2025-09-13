@@ -90,3 +90,27 @@ export interface WorkItemUpdateRequest {
   value?: any;
   from?: string;
 }
+
+export interface PullRequest {
+  pullRequestId: number;
+  title: string;
+  description?: string;
+  status: string;
+  createdBy: {
+    displayName: string;
+    uniqueName: string;
+  };
+  creationDate: string;
+  sourceRefName: string;
+  targetRefName: string;
+  _links: {
+    web?: { href: string };
+  };
+}
+
+export interface CreatePullRequestRequest {
+  sourceRefName: string;
+  targetRefName: string;
+  title: string;
+  description?: string;
+}

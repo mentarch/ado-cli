@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { ConfigManager } from '../config';
-import { WorkItem, WorkItemType, CreateWorkItemRequest, WorkItemUpdateRequest, AdoApiResponse } from '../types';
+import { WorkItem, WorkItemType, CreateWorkItemRequest, WorkItemUpdateRequest, AdoApiResponse, PullRequest, CreatePullRequestRequest } from '../types';
 
 export class AdoApiClient {
   private client: AxiosInstance;
@@ -206,12 +206,60 @@ export class AdoApiClient {
   async deleteWorkItem(id: number): Promise<void> {
     const baseUrl = this.getBaseUrl();
     const project = this.getProject();
-    
+
     await this.client.delete(
       `${baseUrl}/${project}/_apis/wit/workitems/${id}`,
       {
         params: { 'api-version': '7.1' }
       }
     );
+  }
+
+  // Pull Request endpoints
+
+  async getPullRequests(repositoryId: string, status: string = 'active'): Promise<PullRequest[]> {
+    const baseUrl = this.getBaseUrl();
+    const project = this.getProject();
+
+    const response = await this.client.get<AdoApiResponse<PullRequest>>(
+      `${baseUrl}/${project}/_apis/git/repositories/${encodeURIComponent(repositoryId)}/pullrequests`,
+      {
+        params: {
+          'searchCriteria.status': status,
+          'api-version': '7.1'
+        }
+      }
+    );
+
+    return response.data.value;
+  }
+
+  async getPullRequest(repositoryId: string, pullRequestId: number): Promise<PullRequest> {
+    const baseUrl = this.getBaseUrl();
+    const project = this.getProject();
+
+    const response = await this.client.get<PullRequest>(
+      `${baseUrl}/${project}/_apis/git/repositories/${encodeURIComponent(repositoryId)}/pullrequests/${pullRequestId}`,
+      {
+        params: { 'api-version': '7.1' }
+      }
+    );
+
+    return response.data;
+  }
+
+  async createPullRequest(repositoryId: string, request: CreatePullRequestRequest): Promise<PullRequest> {
+    const baseUrl = this.getBaseUrl();
+    const project = this.getProject();
+
+    const response = await this.client.post<PullRequest>(
+      `${baseUrl}/${project}/_apis/git/repositories/${encodeURIComponent(repositoryId)}/pullrequests`,
+      request,
+      {
+        params: { 'api-version': '7.1' }
+      }
+    );
+
+    return response.data;
   }
 }
