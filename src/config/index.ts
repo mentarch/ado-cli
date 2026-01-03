@@ -2,11 +2,12 @@ import * as keytar from 'keytar';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { AdoConfig } from '../types';
+import { AdoConfig, TeamHealthConfig, HealthThresholds, StateCategories } from '../types';
 
 const SERVICE_NAME = 'ado-cli';
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'ado-cli');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
+const TEAM_CONFIG_FILE = path.join(CONFIG_DIR, 'team.json');
 
 export class ConfigManager {
   private config: AdoConfig = {};
@@ -107,5 +108,52 @@ export class ConfigManager {
     } catch (error) {
       // Ignore errors when deleting non-existent files
     }
+  }
+
+  // Team Health Config Methods
+
+  getDefaultThresholds(): HealthThresholds {
+    return {
+      staleDays: 7,
+      stuckInStateDays: 14,
+      maxItemsPerPerson: 10,
+      minItemsPerPerson: 1,
+      highPriorityDays: 3,
+    };
+  }
+
+  getDefaultStateCategories(): StateCategories {
+    return {
+      active: ['Active', 'In Progress', 'In Development', 'New', 'Committed'],
+      blocked: ['Blocked', 'On Hold'],
+      completed: ['Closed', 'Done', 'Resolved', 'Removed'],
+    };
+  }
+
+  getTeamConfig(): TeamHealthConfig | null {
+    try {
+      if (fs.existsSync(TEAM_CONFIG_FILE)) {
+        const configData = fs.readFileSync(TEAM_CONFIG_FILE, 'utf8');
+        return JSON.parse(configData);
+      }
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  saveTeamConfig(config: TeamHealthConfig): void {
+    try {
+      if (!fs.existsSync(CONFIG_DIR)) {
+        fs.mkdirSync(CONFIG_DIR, { recursive: true });
+      }
+      fs.writeFileSync(TEAM_CONFIG_FILE, JSON.stringify(config, null, 2));
+    } catch (error) {
+      throw new Error(`Failed to save team config: ${error}`);
+    }
+  }
+
+  teamConfigExists(): boolean {
+    return fs.existsSync(TEAM_CONFIG_FILE);
   }
 }

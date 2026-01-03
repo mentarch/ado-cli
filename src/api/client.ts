@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { ConfigManager } from '../config';
-import { WorkItem, WorkItemComment, WorkItemType, CreateWorkItemRequest, WorkItemUpdateRequest, AdoApiResponse, PullRequest, CreatePullRequestRequest } from '../types';
+import { WorkItem, WorkItemComment, WorkItemType, CreateWorkItemRequest, WorkItemUpdateRequest, AdoApiResponse, PullRequest, CreatePullRequestRequest, TeamMember } from '../types';
 
 export class AdoApiClient {
   private client: AxiosInstance;
@@ -243,6 +243,58 @@ export class AdoApiClient {
         params: { 'api-version': '7.1' }
       }
     );
+  }
+
+  // Team Health endpoints
+
+  async getTeamWorkItems(members: TeamMember[], includeUnassigned: boolean = true, limit: number = 200): Promise<WorkItem[]> {
+    const baseUrl = this.getBaseUrl();
+    const project = this.getProject();
+
+    // Build WIQL query for all team members and optionally unassigned items
+    const memberConditions = members.map(m => {
+      const conditions = [`[System.AssignedTo] = '${m.email}'`];
+      if (m.aliases) {
+        m.aliases.forEach(alias => {
+          conditions.push(`[System.AssignedTo] = '${alias}'`);
+        });
+      }
+      return `(${conditions.join(' OR ')})`;
+    });
+
+    let whereClause = memberConditions.join(' OR ');
+
+    if (includeUnassigned) {
+      whereClause = `(${whereClause}) OR [System.AssignedTo] = ''`;
+    }
+
+    // Exclude completed states from the query
+    const excludeStates = ['Closed', 'Done', 'Resolved', 'Removed'];
+    const stateExclusions = excludeStates.map(s => `[System.State] <> '${s}'`).join(' AND ');
+
+    const wiql = `
+      SELECT [System.Id]
+      FROM WorkItems
+      WHERE (${whereClause})
+        AND (${stateExclusions})
+      ORDER BY [System.ChangedDate] DESC
+    `;
+
+    return this.getWorkItems(wiql, limit);
+  }
+
+  async getAllActiveWorkItems(limit: number = 500): Promise<WorkItem[]> {
+    const excludeStates = ['Closed', 'Done', 'Resolved', 'Removed'];
+    const stateExclusions = excludeStates.map(s => `[System.State] <> '${s}'`).join(' AND ');
+
+    const wiql = `
+      SELECT [System.Id]
+      FROM WorkItems
+      WHERE ${stateExclusions}
+      ORDER BY [System.ChangedDate] DESC
+    `;
+
+    return this.getWorkItems(wiql, limit);
   }
 
   // Pull Request endpoints

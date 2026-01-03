@@ -145,3 +145,75 @@ export interface CreatePullRequestRequest {
   title: string;
   description?: string;
 }
+
+// Team Health Types
+
+export interface TeamMember {
+  name: string;
+  email: string;
+  aliases?: string[];
+}
+
+export interface TeamConfig {
+  name: string;
+  members: TeamMember[];
+}
+
+export interface HealthThresholds {
+  staleDays: number;
+  stuckInStateDays: number;
+  maxItemsPerPerson: number;
+  minItemsPerPerson: number;
+  highPriorityDays: number;
+}
+
+export interface StateCategories {
+  active: string[];
+  blocked: string[];
+  completed: string[];
+}
+
+export interface TeamHealthConfig {
+  team: TeamConfig;
+  thresholds: HealthThresholds;
+  states: StateCategories;
+}
+
+export type AlertSeverity = 'alert' | 'warning' | 'info';
+export type AlertCategory = 'stale' | 'blocked' | 'workload' | 'unassigned' | 'high-priority';
+
+export interface HealthAlert {
+  severity: AlertSeverity;
+  category: AlertCategory;
+  message: string;
+  workItems?: WorkItem[];
+  member?: TeamMember;
+}
+
+export interface MemberWorkload {
+  member: TeamMember;
+  active: number;
+  blocked: number;
+  total: number;
+  items: WorkItem[];
+  status: 'ok' | 'warning' | 'alert';
+}
+
+export interface ActivitySummary {
+  last24h: { updated: number; closed: number; created: number };
+  last7d: { updated: number; closed: number; created: number };
+}
+
+export interface TeamHealthReport {
+  generatedAt: string;
+  team: TeamConfig;
+  summary: {
+    teamSize: number;
+    activeItems: number;
+    healthScore: number;
+  };
+  alerts: HealthAlert[];
+  workloadDistribution: MemberWorkload[];
+  unassignedItems: WorkItem[];
+  recentActivity: ActivitySummary;
+}
