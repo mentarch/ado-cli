@@ -223,7 +223,7 @@ See [project-plan.md](./project-plan.md) for detailed feature tracking and imple
 
 - Inspired by the GitHub CLI (`gh`) for its excellent user experience
 - Built with [Commander.js](https://github.com/tj/commander.js) for CLI framework
-- Uses [Keytar](https://github.com/atom/node-keytar) for secure credential storage
+- Uses [@napi-rs/keyring](https://github.com/napi-rs/node-rs/tree/main/packages/keyring) to store the token in your OS keychain
 
 ---
 

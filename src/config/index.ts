@@ -1,4 +1,4 @@
-import * as keytar from 'keytar';
+import { Entry } from '@napi-rs/keyring';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -40,7 +40,7 @@ export class ConfigManager {
 
   async getToken(): Promise<string | null> {
     try {
-      return await keytar.getPassword(SERVICE_NAME, 'token');
+      return new Entry(SERVICE_NAME, 'token').getPassword();
     } catch (error) {
       return null;
     }
@@ -48,7 +48,7 @@ export class ConfigManager {
 
   async setToken(token: string): Promise<void> {
     try {
-      await keytar.setPassword(SERVICE_NAME, 'token', token);
+      new Entry(SERVICE_NAME, 'token').setPassword(token);
     } catch (error) {
       throw new Error(`Failed to store token: ${error}`);
     }
@@ -56,7 +56,7 @@ export class ConfigManager {
 
   async deleteToken(): Promise<void> {
     try {
-      await keytar.deletePassword(SERVICE_NAME, 'token');
+      new Entry(SERVICE_NAME, 'token').deletePassword();
     } catch (error) {
       // Ignore errors when deleting non-existent tokens
     }
