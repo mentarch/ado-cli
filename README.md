@@ -88,6 +88,7 @@ The CLI uses Azure DevOps Personal Access Tokens (PAT) for authentication:
 - `ado workitem close <id>` - Close a work item
 - `ado workitem reopen <id>` - Reopen a work item
 - `ado workitem comment <id>` - List or add comments on a work item
+- `ado workitem status` - Show work items involving the current user
 
 ### Pull Requests
 - `ado pr list --repository <repo>` - List pull requests
@@ -127,6 +128,18 @@ ado workitem edit 123 --title "New title" --state "In Progress"
 ado workitem edit 123 --add-label "urgent,frontend" --area "MyTeam\\UI"
 ```
 
+#### Work Item Status
+```bash
+# Show counts of items involving you
+ado workitem status
+
+# Show detailed table of related items
+ado workitem status --table
+
+# Limit results
+ado workitem status --limit 50
+```
+
 ## Global Options
 
 - `-R, --repo <org/project>` - Target specific organization/project
@@ -138,6 +151,9 @@ ado workitem edit 123 --add-label "urgent,frontend" --area "MyTeam\\UI"
 ```bash
 # List your assigned work items
 ado workitem list --assignee @me
+
+# Check work items that mention you or are assigned to you
+ado workitem status
 
 # Create a bug with high priority
 ado workitem create --title "Critical login issue" --type Bug --priority 1 --assignee @me
